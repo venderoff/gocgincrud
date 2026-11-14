@@ -62,6 +62,7 @@ func createmployee(c *gin.Context) {
 
 	var data Employee
 	mu.Lock()
+	defer mu.Unlock()
 	data.ID = int64(nextID)
 	nextID++
 
@@ -70,7 +71,6 @@ func createmployee(c *gin.Context) {
 	data.Department = request.Department
 
 	employees[int(data.ID)] = data
-	mu.Unlock()
 
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Created",
@@ -82,13 +82,13 @@ func createmployee(c *gin.Context) {
 func getAll(c *gin.Context) {
 
 	mu.RLock()
+	defer mu.RLock()
 	result := make([]Employee, 0, len(employees))
 
 	for _, emp := range employees {
 		result = append(result, emp)
 	}
 
-	mu.RUnlock()
 	c.JSON(http.StatusOK, gin.H{
 		"message": "OK",
 		"data":    result,
@@ -149,6 +149,8 @@ func getById(c *gin.Context) {
 		return
 	}
 
+	mu.Lock()
+	defer mu.Unlock()
 	emp, exists := employees[int(id)]
 	if !exists {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "ID does not exist"})
