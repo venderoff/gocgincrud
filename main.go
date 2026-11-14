@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -36,6 +37,8 @@ func main() {
 	r.GET("/health", getHelth)
 	r.POST("/employees", createmployee)
 	r.GET("/getEmployees", getAll)
+	r.PUT("/employees/:id", update)
+	r.GET("/employees/:id", getById)
 
 	r.Run(":8080")
 
@@ -90,4 +93,69 @@ func getAll(c *gin.Context) {
 		"message": "OK",
 		"data":    result,
 	})
+}
+
+func update(c *gin.Context) {
+
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	if id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "id incorrect",
+		})
+		return
+	}
+	var request EmployeeRequest
+
+	err = c.ShouldBindJSON(&request)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "binding error",
+		})
+		return
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	emp, exists := employees[int(id)]
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "id not available"})
+		return
+	}
+
+	if request.Department != "" {
+		emp.Department = request.Department
+	}
+	if request.Name != "" {
+		emp.Name = request.Name
+	}
+	if request.Salary != emp.Salary {
+		emp.Salary = request.Salary
+	}
+
+	employees[int(id)] = emp
+
+	c.JSON(http.StatusCreated, gin.H{"message": "update completed",
+		"data": employees[int(id)]})
+}
+
+func getById(c *gin.Context) {
+
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Param Error"})
+		return
+	}
+
+	emp, exists := employees[int(id)]
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "ID does not exist"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "success",
+		"data": emp})
+
 }
